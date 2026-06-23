@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>读简 - 电子书章节分解工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 640px;
+            max-width: 96%;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+            padding: 40px 36px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header h1 span {
+            color: #4f6ef7;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        .intro {
+            background: #f0f3ff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border: 1px solid #dde4ff;
+        }
+
+        .intro .title {
+            font-weight: 600;
+            color: #4f6ef7;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .intro .step {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.8;
+            padding-left: 4px;
+        }
+
+        .intro .step em {
+            color: #4f6ef7;
+            font-style: normal;
+            font-weight: 500;
+        }
+
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 16px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: #fafbfc;
+            position: relative;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: #4f6ef7;
+            background: #f0f3ff;
+        }
+
+        .drop-zone .icon {
+            font-size: 42px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .drop-zone .text {
+            font-size: 15px;
+            color: #374151;
+        }
+
+        .drop-zone .hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 6px;
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: #f0f3ff;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+
+        .file-info .name {
+            flex: 1;
+            font-weight: 500;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-info .size {
+            color: #6b7280;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .file-info .remove-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .file-info .remove-btn:hover {
+            color: #dc2626;
+        }
+
+        .type-select {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .type-select label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #374151;
+        }
+
+        .type-options {
+            display: flex;
+            gap: 12px;
+        }
+
+        .type-options button {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: #374151;
+        }
+
+        .type-options button:hover {
+            border-color: #4f6ef7;
+            background: #f0f3ff;
+        }
+
+        .type-options button.active {
+            border-color: #4f6ef7;
+            background: #4f6ef7;
+            color: #fff;
+        }
+
+        .export-btn {
+            display: none;
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            background: #4f6ef7;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .export-btn:hover {
+            background: #3b5de7;
+        }
+
+        .export-btn:disabled {
+            background: #a5b4fc;
+            cursor: not-allowed;
+        }
+
+        .progress {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress .bar-track {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress .bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4f6ef7, #7c3aed);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress .status-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .result {
+            display: none;
+            margin-top: 20px;
+            padding: 16px 20px;
+            background: #ecfdf5;
+            border-radius: 12px;
+            border: 1px solid #a7f3d0;
+        }
+
+        .result .title {
+            font-weight: 600;
+            color: #065f46;
+            font-size: 14px;
+        }
+
+        .result .desc {
+            color: #047857;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .chapters-preview {
+            display: none;
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .chapters-preview .title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .chapters-preview .item {
+            font-size: 12px;
+            color: #6b7280;
+            padding: 3px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chapters-preview .item::before {
+            content: "📄";
+            font-size: 11px;
+        }
+
+        .error-msg {
+            display: none;
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #fef2f2;
+            border-radius: 10px;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            font-size: 13px;
+        }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 640px) {
+            body {
+                align-items: flex-start;
+                padding: 12px 0;
+            }
+
+            .container {
+                max-width: 100%;
+                border-radius: 16px;
+                padding: 24px 18px;
+                margin: 0 8px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .header p {
+                font-size: 12px;
+            }
+
+            .intro {
+                padding: 12px 14px;
+            }
+
+            .intro .step {
+                font-size: 12px;
+                line-height: 1.7;
+            }
+
+            .drop-zone {
+                padding: 32px 16px;
+            }
+
+            .drop-zone .icon {
+                font-size: 32px;
+                margin-bottom: 8px;
+            }
+
+            .drop-zone .text {
+                font-size: 13px;
+            }
+
+            .type-options {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .type-options button {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+
+            .export-btn {
+                padding: 12px;
+                font-size: 15px;
+            }
+
+            .file-info {
+                padding: 10px 14px;
+                flex-wrap: wrap;
+            }
+
+            .file-info .size {
+                font-size: 11px;
+            }
+
+            .chapters-preview {
+                max-height: 160px;
+                padding: 10px 12px;
+            }
+
+            .chapters-preview .item {
+                font-size: 11px;
+            }
+
+            .footer {
+                font-size: 11px;
+                line-height: 1.6 !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .container {
+                padding: 18px 12px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .drop-zone {
+                padding: 24px 12px;
+            }
+
+            .drop-zone .text {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><span>读</span>简</h1>
+            <p>导入电子书 → 按章节拆分 → 导出带 AI 指令的章节文件</p>
+        </div>
+
+        <div class="intro">
+            <div class="title">📖 这是做什么的？</div>
+            <div class="step">
+                导入电子书 → 自动按章节拆分 → 每个章节文件自带 AI 处理指令。<br>
+                将导出的章节文件丢给 <em>DeepSeek</em>、<em>豆包</em>、<em>Kimi</em> 等 AI 工具，
+                AI 会自动帮你提炼精华、重组逻辑，让你快速读懂一本书。
+            </div>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dde4ff;">
+                <div class="step" style="font-weight: 500; color: #4f6ef7;">操作步骤</div>
+                <div class="step">
+                    ① 拖入电子书（支持 .epub .txt 文本型PDF）<br>
+                    ② 选择书籍类型（工具书 / 小说）<br>
+                    ③ 点击导出 → 得到章节文件包<br>
+                    ④ 把文件拖入 AI 工具，AI 自动按指令处理
+                </div>
+            </div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <span class="icon">📂</span>
+            <div class="text">拖入电子书文件，或点击选择</div>
+            <div class="hint">支持 .epub .txt .pdf 格式（仅限文本型PDF，扫描版请用在线AI工具）</div>
+            <input type="file" id="fileInput" accept=".epub,.txt,.pdf">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <span>📖</span>
+            <span class="name" id="fileName"></span>
+            <span class="size" id="fileSize"></span>
+            <button class="remove-btn" id="removeFileBtn">✕</button>
+        </div>
+
+        <div class="type-select" id="typeSelect">
+            <label>选择书籍类型</label>
+            <div class="type-options">
+                <button data-type="tool">📘 工具 / 方法类</button>
+                <button data-type="novel">📖 叙事 / 故事类</button>
+            </div>
+        </div>
+
+        <div class="chapters-preview" id="chaptersPreview">
+            <div class="title">📑 解析到的章节</div>
+            <div id="chapterList"></div>
+        </div>
+
+        <button class="export-btn" id="exportBtn">⬇ 导出章节文件</button>
+
+        <div class="progress" id="progress">
+            <div class="bar-track">
+                <div class="bar" id="progressBar"></div>
+            </div>
+            <div class="status-text" id="statusText">准备中...</div>
+        </div>
+
+        <div class="result" id="result">
+            <div class="title">✅ 导出成功</div>
+            <div class="desc" id="resultDesc"></div>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="footer" style="line-height: 1.8;">
+            <div>文件仅在本地浏览器处理，不会上传到任何服务器</div>
+            <div style="margin-top: 6px; color: #9ca3af; font-size: 12px;">
+                扫描版PDF请直接用 DeepSeek / Kimi 网页版上传，它们自带OCR+AI分析
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 状态 =====
+        let currentFile = null;
+        let currentType = null;
+        let chapters = [];
+
+
+
+        // ===== DOM =====
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const removeFileBtn = document.getElementById('removeFileBtn');
+        const typeSelect = document.getElementById('typeSelect');
+        const typeButtons = document.querySelectorAll('.type-options button');
+        const chaptersPreview = document.getElementById('chaptersPreview');
+        const chapterList = document.getElementById('chapterList');
+        const exportBtn = document.getElementById('exportBtn');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const result = document.getElementById('result');
+        const resultDesc = document.getElementById('resultDesc');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // ===== Prompt 模板 =====
+        function getPrompt(type) {
+            if (type === 'tool') {
+                return '【处理指令】\n以下是一本工具/方法类书籍的部分内容（可能是整本书或其中一个章节）。\n目标是：帮助用户快速获取核心知识和方法论。\n要求：用通俗易懂的语言简化内容，按「为什么 → 是什么 → 怎么做」组织。可灵活调整。';
+            } else {
+                return '【处理指令】\n以下是一本叙事/故事类书籍的部分内容（可能是整本书或其中一个章节）。\n目标是：让用户短时间内了解故事发展，不错过重要情节。\n要求：用通俗易懂的语言简化内容，保持原剧情顺序和连贯性。在关键情节处简要说明为什么重要（可灵活调整）。';
+            }
+        }
+
+        function getTypeLabel(type) {
+            return type === 'tool' ? '工具/方法类' : '叙事/故事类';
+        }
+
+        // ===== 文件选择 =====
+        function handleFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'epub' && ext !== 'txt' && ext !== 'pdf') {
+                showError('仅支持 .epub、.txt 和 .pdf 格式');
+                return;
+            }
+            currentFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatSize(file.size);
+            fileInfo.style.display = 'flex';
+            dropZone.style.display = 'none';
+            typeSelect.style.display = 'block';
+            chaptersPreview.style.display = 'none';
+            exportBtn.style.display = 'none';
+            result.style.display = 'none';
+            errorMsg.style.display = 'none';
+            chapters = [];
+            currentType = null;
+            typeButtons.forEach(b => b.classList.remove('active'));
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+
+        removeFileBtn.addEventListener('click', () => {
+            resetUI();
+        });
+
+        function resetUI() {
+            currentFile = null;
+            currentType = null;
+            chapters = [];
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            dropZone.style.display = 'block';
+            typeSelect.style.display = 'none';
+            chaptersPreview.style.display = 'none';
+            exportBtn.style.display = 'none';
+            progress.style.display = 'none';
+            result.style.display = 'none';
+            errorMsg.style.display = 'none';
+            typeButtons.forEach(b => b.classList.remove('active'));
+        }
+
+        // ===== 类型选择 =====
+        typeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                typeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentType = btn.dataset.type;
+                parseBook();
+            });
+        });
+
+        // ===== 解析书籍 =====
+        async function parseBook() {
+            if (!currentFile || !currentType) return;
+            showError(null);
+            result.style.display = 'none';
+            exportBtn.style.display = 'none';
+            chaptersPreview.style.display = 'none';
+
+            const ext = currentFile.name.split('.').pop().toLowerCase();
+            try {
+                if (ext === 'epub') {
+                    await parseEpub(currentFile);
+                } else if (ext === 'pdf') {
+                    await parsePdf(currentFile);
+                } else {
+                    await parseTxt(currentFile);
+                }
+                renderChapters();
+                chaptersPreview.style.display = 'block';
+                exportBtn.style.display = 'block';
+            } catch (err) {
+                showError('解析失败：' + err.message);
+            }
+        }
+
+        // ===== EPUB 解析 =====
+        function parseEpub(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        // 用 JSZip 直接解压 EPUB（EPUB 本质就是 ZIP 包）
+                        const zip = await JSZip.loadAsync(e.target.result);
+                        chapters = [];
+
+                        // 1. 尝试找 container.xml 获取 opf 文件路径
+                        let opfPath = '';
+                        const containerXml = zip.file('META-INF/container.xml');
+                        if (containerXml) {
+                            const containerText = await containerXml.async('text');
+                            const match = containerText.match(/full-path="([^"]+)"/);
+                            if (match) opfPath = match[1];
+                        }
+
+                        // 2. 解析 opf 文件获取章节列表
+                        if (opfPath) {
+                            const opfFile = zip.file(opfPath);
+                            if (opfFile) {
+                                const opfText = await opfFile.async('text');
+                                const parser = new DOMParser();
+                                const opfDoc = parser.parseFromString(opfText, 'text/xml');
+
+                                // 获取 opf 所在目录（用于拼接相对路径）
+                                const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
+
+                                // 从 manifest 中获取所有文档
+                                const manifest = opfDoc.querySelector('manifest');
+                                const spine = opfDoc.querySelector('spine');
+
+                                if (spine && manifest) {
+                                    const itemrefs = spine.querySelectorAll('itemref');
+                                    const idrefMap = {};
+
+                                    // 建立 id -> href 映射
+                                    manifest.querySelectorAll('item').forEach(item => {
+                                        const id = item.getAttribute('id');
+                                        const href = item.getAttribute('href');
+                                        const mediaType = item.getAttribute('media-type');
+                                        if (id && href && mediaType === 'application/xhtml+xml') {
+                                            idrefMap[id] = opfDir + href;
+                                        }
+                                    });
+
+                                    // 按 spine 顺序读取章节
+                                    for (const itemref of itemrefs) {
+                                        const idref = itemref.getAttribute('idref');
+                                        const href = idrefMap[idref];
+                                        if (!href) continue;
+
+                                        const filePath = href.replace(/^\.\//, '');
+                                        const zipEntry = zip.file(filePath) || zip.file(decodeURIComponent(filePath));
+                                        if (!zipEntry) continue;
+
+                                        try {
+                                            const htmlText = await zipEntry.async('text');
+                                            const htmlDoc = parser.parseFromString(htmlText, 'text/html');
+                                            const text = extractTextFromDocument(htmlDoc);
+
+                                            // 尝试从 HTML 中获取标题
+                                            // 优先取 h1-h6 中的最大标题，其次取 <title>
+                                            let title = `第${chapters.length + 1}节`;
+                                            const hTags = htmlDoc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                                            for (const h of hTags) {
+                                                const t = h.textContent.trim();
+                                                if (t && t.length > 1 && t.length < 100) {
+                                                    title = t;
+                                                    break;
+                                                }
+                                            }
+                                            if (title === `第${chapters.length + 1}节`) {
+                                                const titleTag = htmlDoc.querySelector('title');
+                                                if (titleTag && titleTag.textContent.trim()) {
+                                                    title = titleTag.textContent.trim();
+                                                }
+                                            }
+
+                                            if (text.trim().length > 20) {
+                                                chapters.push({
+                                                    index: chapters.length + 1,
+                                                    title: title,
+                                                    text: text.trim()
+                                                });
+                                            }
+                                        } catch (sectionErr) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. 如果 opf 方式没解析到，尝试读取所有 xhtml/html 文件
+                        if (chapters.length === 0) {
+                            const htmlFiles = [];
+                            zip.forEach((path, entry) => {
+                                if (!entry.dir && /\.(xhtml|html)$/i.test(path) &&
+                                    !path.startsWith('META-INF/') && path !== 'toc.ncx') {
+                                    htmlFiles.push(path);
+                                }
+                            });
+                            htmlFiles.sort();
+
+                            const parser = new DOMParser();
+                            for (const path of htmlFiles) {
+                                try {
+                                    const entry = zip.file(path);
+                                    if (!entry) continue;
+                                    const htmlText = await entry.async('text');
+                                    const htmlDoc = parser.parseFromString(htmlText, 'text/html');
+                                    const text = extractTextFromDocument(htmlDoc);
+
+                                    let title = `第${chapters.length + 1}节`;
+                                    const hTags = htmlDoc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                                    for (const h of hTags) {
+                                        const t = h.textContent.trim();
+                                        if (t && t.length > 1 && t.length < 100) {
+                                            title = t;
+                                            break;
+                                        }
+                                    }
+                                    if (title === `第${chapters.length + 1}节`) {
+                                        const titleTag = htmlDoc.querySelector('title');
+                                        if (titleTag && titleTag.textContent.trim()) {
+                                            title = titleTag.textContent.trim();
+                                        }
+                                    }
+
+                                    if (text.trim().length > 20) {
+                                        chapters.push({
+                                            index: chapters.length + 1,
+                                            title: title,
+                                            text: text.trim()
+                                        });
+                                    }
+                                } catch (e) {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (chapters.length === 0) {
+                            reject(new Error('EPUB 文件中未找到可解析的章节内容'));
+                            return;
+                        }
+
+                        resolve();
+                    } catch (err) {
+                        reject(new Error('EPUB 解析失败：' + err.message));
+                    }
+                };
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function extractTextFromDocument(doc) {
+            let text = '';
+            const walker = doc.createTreeWalker(doc.body || doc, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+                const t = node.textContent.trim();
+                if (t) text += t + '\n';
+            }
+            return text;
+        }
+
+        // ===== PDF 解析 =====
+        function parsePdf(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const pdf = await pdfjsLib.getDocument({ data }).promise;
+                        const totalPages = pdf.numPages;
+                        const allTexts = [];
+
+                        for (let i = 1; i <= totalPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const content = await page.getTextContent();
+                            const pageText = content.items.map(item => item.str).join(' ');
+                            allTexts.push(pageText);
+                        }
+
+                        const fullText = allTexts.join('\n\n');
+                        pdf.destroy();
+
+                        // 尝试按章节拆分（同 TXT 逻辑）
+                        chapters = splitIntoChapters(fullText, file.name);
+                        resolve();
+                    } catch (err) {
+                        reject(new Error('PDF 解析失败：' + err.message));
+                    }
+                };
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // ===== TXT 解析 =====
+        function parseTxt(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target.result;
+                        chapters = splitIntoChapters(content, file.name);
+                        resolve();
+                    } catch (err) {
+                        reject(new Error('TXT 解析失败：' + err.message));
+                    }
+                };
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsText(file);
+            });
+        }
+
+        // ===== 通用章节拆分 =====
+        function splitIntoChapters(content, fileName) {
+            // 章节标题正则：匹配单独成行的标题
+            // 支持: 第一章、第1章、Chapter 1、第一回、第一节、第一篇、第一段、第一折、Part 1、Section 1等
+            const chapterPattern = /^(?:第[\u4e00-\u9fa5\d]+[章节篇部回段折节]|第[\d]+[章节篇部回段折节]|Chapter\s*\d+|Section\s*\d+|Part\s*\d+|[一二三四五六七八九十百千]+[章节篇部回段折节]|[A-Z][^。\n]{0,20}(?:章|节))$/i;
+
+            const lines = content.split('\n');
+            const tempChapters = [];
+            let currentChapter = { title: '序言/开头', text: [] };
+
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    currentChapter.text.push(line);
+                    continue;
+                }
+
+                // 必须单独成行才认为是章节标题，避免正文中的"如第一章所述"误切
+                if (chapterPattern.test(trimmed)) {
+                    chapterPattern.lastIndex = 0;
+                    // 保存上一章
+                    const combined = currentChapter.text.join('\n').trim();
+                    if (combined.length > 20) {
+                        tempChapters.push({
+                            index: tempChapters.length + 1,
+                            title: currentChapter.title,
+                            text: combined
+                        });
+                    }
+                    currentChapter = { title: trimmed, text: [] };
+                } else {
+                    currentChapter.text.push(line);
+                }
+            }
+
+            // 最后一章
+            const lastText = currentChapter.text.join('\n').trim();
+            if (lastText.length > 20) {
+                tempChapters.push({
+                    index: tempChapters.length + 1,
+                    title: currentChapter.title,
+                    text: lastText
+                });
+            }
+
+            // 如果没找到章节，整本书作为一章
+            if (tempChapters.length === 0) {
+                return [{
+                    index: 1,
+                    title: fileName.replace(/\.[^/.]+$/, ''),
+                    text: content.trim()
+                }];
+            }
+            return tempChapters;
+        }
+
+        // ===== 渲染章节列表 =====
+        function renderChapters() {
+            chapterList.innerHTML = '';
+            chapters.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                const preview = ch.text.substring(0, 40).replace(/\n/g, ' ');
+                div.textContent = `${ch.title}（约${ch.text.length}字）`;
+                chapterList.appendChild(div);
+            });
+        }
+
+        // ===== 导出 =====
+        exportBtn.addEventListener('click', async () => {
+            if (chapters.length === 0 || !currentType) return;
+            showError(null);
+            result.style.display = 'none';
+            exportBtn.style.display = 'none';
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            try {
+                const zip = new JSZip();
+                const bookName = currentFile.name.replace(/\.[^/.]+$/, '');
+                const folderName = `${bookName}_章节分解`;
+                const folder = zip.folder(folderName);
+
+                const total = chapters.length;
+                for (let i = 0; i < total; i++) {
+                    const ch = chapters[i];
+                    const content = buildChapterContent(ch, bookName);
+                    const filename = `${String(ch.index).padStart(2, '0')}_${sanitizeFilename(ch.title)}.txt`;
+                    folder.file(filename, content, { charset: 'utf-8' });
+
+                    const pct = Math.round(((i + 1) / total) * 100);
+                    progressBar.style.width = pct + '%';
+                    statusText.textContent = `正在生成：${ch.title}（${i + 1}/${total}）`;
+                    // 让 UI 更新
+                    await sleep(50);
+                }
+
+                const blob = await zip.generateAsync({ type: 'blob' });
+                downloadBlob(blob, `${folderName}.zip`);
+
+                progress.style.display = 'none';
+                result.style.display = 'block';
+                resultDesc.textContent = `共导出 ${total} 个章节文件，打包为 ${folderName}.zip`;
+                exportBtn.style.display = 'block';
+            } catch (err) {
+                progress.style.display = 'none';
+                showError('导出失败：' + err.message);
+                exportBtn.style.display = 'block';
+            }
+        });
+
+        function buildChapterContent(chapter, bookName) {
+            const prompt = getPrompt(currentType);
+            const typeLabel = getTypeLabel(currentType);
+            const lines = [
+                prompt,
+                '',
+                '【章节信息】',
+                `书名：${bookName}`,
+                `类型：${typeLabel}`,
+                `当前章节：${chapter.title}（共${chapters.length}章）`,
+                '',
+                '【章节正文】',
+                chapter.text
+            ];
+            return lines.join('\n');
+        }
+
+        // ===== 工具函数 =====
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function sanitizeFilename(name) {
+            return name.replace(/[<>:"/\\|?*\n\r]/g, '').substring(0, 50);
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showError(msg) {
+            if (msg) {
+                errorMsg.textContent = msg;
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+
+
+    </script>
+</body>
+</html>
