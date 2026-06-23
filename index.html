@@ -505,6 +505,9 @@
     </div>
 
     <script>
+        // ===== 设置 pdf.js worker =====
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
         // ===== 状态 =====
         let currentFile = null;
         let currentType = null;
