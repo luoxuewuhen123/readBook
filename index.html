@@ -162,48 +162,6 @@
             color: #dc2626;
         }
 
-        .type-select {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .type-select label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 10px;
-            color: #374151;
-        }
-
-        .type-options {
-            display: flex;
-            gap: 12px;
-        }
-
-        .type-options button {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            background: #fff;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            color: #374151;
-        }
-
-        .type-options button:hover {
-            border-color: #4f6ef7;
-            background: #f0f3ff;
-        }
-
-        .type-options button.active {
-            border-color: #4f6ef7;
-            background: #4f6ef7;
-            color: #fff;
-        }
-
         .export-btn {
             display: none;
             width: 100%;
@@ -372,16 +330,6 @@
                 font-size: 13px;
             }
 
-            .type-options {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .type-options button {
-                padding: 10px 14px;
-                font-size: 13px;
-            }
-
             .export-btn {
                 padding: 12px;
                 font-size: 15px;
@@ -448,9 +396,8 @@
                 <div class="step" style="font-weight: 500; color: #4f6ef7;">操作步骤</div>
                 <div class="step">
                     ① 拖入电子书（支持 .epub .txt 文本型PDF）<br>
-                    ② 选择书籍类型（工具书 / 小说）<br>
-                    ③ 点击导出 → 得到章节文件包<br>
-                    ④ 把文件拖入 AI 工具，AI 自动按指令处理
+                    ② 自动解析章节 → 点击导出<br>
+                    ③ 将文件拖入 AI 工具，AI 自动按指令处理
                 </div>
             </div>
         </div>
@@ -467,14 +414,6 @@
             <span class="name" id="fileName"></span>
             <span class="size" id="fileSize"></span>
             <button class="remove-btn" id="removeFileBtn">✕</button>
-        </div>
-
-        <div class="type-select" id="typeSelect">
-            <label>选择书籍类型</label>
-            <div class="type-options">
-                <button data-type="tool">📘 工具 / 方法类</button>
-                <button data-type="novel">📖 叙事 / 故事类</button>
-            </div>
         </div>
 
         <div class="chapters-preview" id="chaptersPreview">
@@ -522,11 +461,10 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
         // ===== 设备判断 =====
-        var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         // ===== 状态 =====
         let currentFile = null;
-        let currentType = null;
         let chapters = [];
 
         // ===== DOM =====
@@ -536,8 +474,6 @@
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
         const removeFileBtn = document.getElementById('removeFileBtn');
-        const typeSelect = document.getElementById('typeSelect');
-        const typeButtons = document.querySelectorAll('.type-options button');
         const chaptersPreview = document.getElementById('chaptersPreview');
         const chapterList = document.getElementById('chapterList');
         const exportBtn = document.getElementById('exportBtn');
@@ -547,18 +483,11 @@
         const result = document.getElementById('result');
         const resultDesc = document.getElementById('resultDesc');
         const errorMsg = document.getElementById('errorMsg');
+        const container = document.querySelector('.container');
 
         // ===== Prompt 模板 =====
-        function getPrompt(type) {
-            if (type === 'tool') {
-                return '【处理指令】\n以下是一本工具/方法类书籍的部分内容（可能是整本书或其中一个章节）。\n目标是：帮助用户快速获取核心知识和方法论。\n要求：用通俗易懂的语言简化内容，按「为什么 → 是什么 → 怎么做」组织。可灵活调整。';
-            } else {
-                return '【处理指令】\n以下是一本叙事/故事类书籍的部分内容（可能是整本书或其中一个章节）。\n目标是：让用户短时间内了解故事发展，不错过重要情节。\n要求：用通俗易懂的语言简化内容，保持原剧情顺序和连贯性。可灵活调整。';
-            }
-        }
-
-        function getTypeLabel(type) {
-            return type === 'tool' ? '工具/方法类' : '叙事/故事类';
+        function getPrompt() {
+            return '【处理指令】\n以下是一本书的部分内容也可能是全部内容。\n用通俗易懂的语言简化书中内容，将用户代入到书中以一个连贯的故事的形式讲述书中内容(串不成故事的内容可以不写)。';
         }
 
         // ===== 文件选择 =====
@@ -573,15 +502,14 @@
             fileSize.textContent = formatSize(file.size);
             fileInfo.style.display = 'flex';
             dropZone.style.display = 'none';
-            typeSelect.style.display = 'block';
             chaptersPreview.style.display = 'none';
             exportBtn.style.display = 'none';
             clipBtn.style.display = 'none';
             result.style.display = 'none';
             errorMsg.style.display = 'none';
             chapters = [];
-            currentType = null;
-            typeButtons.forEach(b => b.classList.remove('active'));
+            // 自动开始解析
+            parseBook();
         }
 
         fileInput.addEventListener('change', (e) => {
@@ -607,35 +535,21 @@
 
         function resetUI() {
             currentFile = null;
-            currentType = null;
             chapters = [];
             fileInput.value = '';
             fileInfo.style.display = 'none';
             dropZone.style.display = 'block';
-            typeSelect.style.display = 'none';
             chaptersPreview.style.display = 'none';
             exportBtn.style.display = 'none';
             clipBtn.style.display = 'none';
             progress.style.display = 'none';
             result.style.display = 'none';
             errorMsg.style.display = 'none';
-            typeButtons.forEach(b => b.classList.remove('active'));
         }
-
-        // ===== 类型选择 =====
-        typeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                typeButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentType = btn.dataset.type;
-                parseBook();
-            });
-        });
 
         // ===== 解析书籍 =====
         async function parseBook() {
-            if (!currentFile || !currentType) return;
-            var container = document.querySelector('.container');
+            if (!currentFile) return;
             container.style.minHeight = container.offsetHeight + 'px';
             showError(null);
             result.style.display = 'none';
@@ -981,20 +895,13 @@
         }
 
         // ===== 导出格式选择 =====
-        var exportFormat = 'txt';
-        // 根据设备显示对应按钮
-        var clipBtn = document.getElementById('clipBtn');
-        if (isMobile) {
-            exportFormat = 'clip';
-        } else {
-            exportFormat = 'txt';
-        }
+        const clipBtn = document.getElementById('clipBtn');
+        const exportFormat = isMobile ? 'clip' : 'txt';
 
         // ===== 导出 =====
         async function doExport() {
-            if (chapters.length === 0 || !currentType) return;
+            if (chapters.length === 0) return;
             // 固定容器高度，防止切换时滚动条跳动
-            var container = document.querySelector('.container');
             container.style.minHeight = container.offsetHeight + 'px';
             showError(null);
             result.style.display = 'none';
@@ -1095,20 +1002,8 @@
         clipBtn.addEventListener('click', doExport);
 
         function buildChapterContent(chapter, bookName) {
-            const prompt = getPrompt(currentType);
-            const typeLabel = getTypeLabel(currentType);
-            const lines = [
-                prompt,
-                '',
-                '【章节信息】',
-                `书名：${bookName}`,
-                `类型：${typeLabel}`,
-                `当前章节：${chapter.title}（共${chapters.length}章）`,
-                '',
-                '【章节正文】',
-                chapter.text
-            ];
-            return lines.join('\n');
+            const prompt = getPrompt();
+            return prompt + '\n\n【正文】\n' + chapter.text;
         }
 
         // ===== 工具函数 =====
