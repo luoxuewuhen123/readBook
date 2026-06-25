@@ -27,44 +27,30 @@
         .header h1 { font-size: 28px; font-weight: 700; color: #1f2937; }
         .header p { font-size: 14px; color: #6b7280; margin-top: 6px; }
 
-        .drop-zone {
-            border: 2px dashed #d1d5db;
-            border-radius: 16px;
-            padding: 40px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-        .drop-zone:hover { border-color: #4f6ef7; background: #f8f9ff; }
-        .drop-zone.dragover { border-color: #4f6ef7; background: #eef1ff; }
-        .drop-zone .icon { font-size: 40px; }
-        .drop-zone .text { font-size: 14px; color: #6b7280; margin-top: 10px; }
-        .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        label { font-size: 13px; font-weight: 500; color: #374151; display: block; margin-bottom: 6px; }
 
-        .file-info {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 16px;
-            background: #f0f3ff;
-            border-radius: 12px;
-            margin-top: 16px;
-            font-size: 13px;
-            color: #374151;
+        textarea {
+            width: 100%; height: 200px; padding: 14px;
+            border: 1px solid #e5e7eb; border-radius: 12px;
+            font-size: 13px; line-height: 1.8; resize: vertical;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #fafbfc; color: #374151;
         }
-        .file-info .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .file-info .size { color: #9ca3af; font-size: 12px; }
-        .file-info .remove-btn {
-            background: none; border: none; font-size: 16px; cursor: pointer;
-            color: #9ca3af; padding: 0 4px; line-height: 1;
+        textarea:focus { outline: none; border-color: #4f6ef7; }
+
+        input[type="text"] {
+            width: 100%; padding: 12px 14px; margin-top: 6px;
+            border: 1px solid #e5e7eb; border-radius: 12px;
+            font-size: 14px; outline: none;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            box-sizing: border-box;
         }
-        .file-info .remove-btn:hover { color: #dc2626; }
+        input[type="text"]:focus { border-color: #4f6ef7; }
 
         .btn {
             width: 100%;
             padding: 14px;
-            margin-top: 20px;
+            margin-top: 16px;
             background: #4f6ef7;
             color: #fff;
             border: none;
@@ -75,7 +61,6 @@
             transition: background 0.2s ease;
         }
         .btn:hover { background: #3b5de7; }
-        .btn:disabled { background: #a5b4fc; cursor: not-allowed; }
 
         .output-area {
             display: none;
@@ -85,22 +70,18 @@
             font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 8px;
         }
         .output-area textarea {
-            width: 100%; height: 300px; padding: 14px;
-            border: 1px solid #e5e7eb; border-radius: 12px;
-            font-size: 13px; line-height: 1.8; resize: vertical;
-            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
-            background: #fafbfc; color: #374151;
+            height: 300px;
         }
-        .output-area textarea:focus { outline: none; border-color: #4f6ef7; }
 
-        .download-btn {
-            margin-top: 10px; padding: 10px 20px;
+        .copy-btn {
+            width: 100%;
+            margin-top: 10px; padding: 12px;
             background: #10b981; color: #fff;
             border: none; border-radius: 10px;
             font-size: 14px; font-weight: 500; cursor: pointer;
             transition: background 0.2s ease;
         }
-        .download-btn:hover { background: #059669; }
+        .copy-btn:hover { background: #059669; }
 
         .error-msg {
             display: none; margin-top: 12px;
@@ -111,7 +92,6 @@
         @media (max-width: 600px) {
             .container { padding: 24px 16px; }
             .header h1 { font-size: 22px; }
-            .drop-zone { padding: 30px 12px; }
         }
     </style>
 </head>
@@ -119,63 +99,40 @@
 <div class="container">
     <div class="header">
         <h1>🖼️ 故事分段 - 配图专用</h1>
-        <p>导入排版后的故事文本 → 按语义分段（每段一个画面）→ 下载后逐段生成配图 → 拼接成视频</p>
+        <p>粘贴故事文本 → 自动拼接分段指令 → 复制结果发给 AI → AI 按语义分段并生成画面描述</p>
     </div>
 
-    <div class="drop-zone" id="dropZone">
-        <span class="icon">📂</span>
-        <div class="text">拖入排版后的 TXT 文件，或点击选择</div>
-        <input type="file" id="fileInput" accept=".txt">
+    <label>粘贴原文：</label>
+    <textarea id="inputText" placeholder="在此粘贴排版后的故事文本..."></textarea>
+
+    <div style="margin-top: 14px;">
+        <label>AI 画图风格（选填）</label>
+        <input type="text" id="styleInput" placeholder="例如：吉卜力风格动画插图">
     </div>
 
-    <div class="file-info" id="fileInfo">
-        <span>📄</span>
-        <span class="name" id="fileName"></span>
-        <span class="size" id="fileSize"></span>
-        <button class="remove-btn" id="removeFileBtn">✕</button>
-    </div>
-
-    <div style="margin-top: 16px;">
-        <label style="font-size: 13px; font-weight: 500; color: #374151;">AI 画图风格（选填，如：吉卜力风格、动漫风格、写实风格）</label>
-        <input type="text" id="styleInput" placeholder="例如：吉卜力风格动画插图" style="
-            width: 100%; padding: 12px 14px; margin-top: 6px;
-            border: 1px solid #e5e7eb; border-radius: 12px;
-            font-size: 14px; outline: none;
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            box-sizing: border-box;
-        ">
-    </div>
-
-    <button class="btn" id="processBtn" disabled>⚡ 生成分段结果</button>
+    <button class="btn" id="processBtn">⚡ 生成分段结果</button>
 
     <div class="output-area" id="outputArea">
-        <div class="label">✅ 已生成，点击下载后发给 AI 画图：</div>
+        <div class="label">✅ 已生成，复制以下内容发给 AI：</div>
         <textarea id="outputText" readonly></textarea>
-        <button class="download-btn" id="downloadBtn">⬇ 下载 TXT 文件</button>
+        <button class="copy-btn" id="copyBtn">📋 复制内容</button>
+        <div id="copyTip" style="display:none; text-align:center; margin-top:8px; font-size:13px; color:#10b981; font-weight:500;">✅ 复制成功</div>
     </div>
 
     <div class="error-msg" id="errorMsg"></div>
 </div>
 
 <script>
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const fileSize = document.getElementById('fileSize');
-const removeFileBtn = document.getElementById('removeFileBtn');
+const inputText = document.getElementById('inputText');
+const styleInput = document.getElementById('styleInput');
 const processBtn = document.getElementById('processBtn');
 const outputArea = document.getElementById('outputArea');
 const outputText = document.getElementById('outputText');
-const downloadBtn = document.getElementById('downloadBtn');
+const copyBtn = document.getElementById('copyBtn');
 const errorMsg = document.getElementById('errorMsg');
 
-let currentFile = null;
-let lastResult = '';
-const styleInput = document.getElementById('styleInput');
-
-const PROMPT = `【分段描述指令】
-请将以下原文按语义分段，并对每段内容进行画面描述，目的是为了将每段画面描述导入AI画图，为每段生成一个图片，最后可以拼接成一个视频。下面输出格式的原文来保留完整不要删减，进行画面描述的时候，如果有相同的人物或者场景要重新完整描述一遍并且用词要完全一致，下面的画图风格是要拼接到画面描述内容的最后面(不进行分析)
+const PROMPT_WITH_STYLE = `【分段描述指令】
+请将以下原文按语义分段，并对每段内容进行画面描述，目的是为了将每段画面描述导入AI画图，为每段生成一个图片，最后可以拼接成一个视频。下面输出格式的原文要保留完整不要删减，进行画面描述的时候，如果有相同的人物或者场景要重新完整描述一遍并且用词要完全一致，下面的画图风格是要拼接到画面描述内容的最后面(不进行分析)
 
 输出格式为：
 
@@ -183,91 +140,48 @@ const PROMPT = `【分段描述指令】
 
 画面描述：（该原文的画面描述）`;
 
-function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
+const PROMPT_NO_STYLE = `【分段描述指令】
+请将以下原文按语义分段，并对每段内容进行画面描述，目的是为了将每段画面描述导入AI画图，为每段生成一个图片，最后可以拼接成一个视频。下面输出格式的原文要保留完整不要删减，进行画面描述的时候，如果有相同的人物或者场景要重新完整描述一遍并且用词要完全一致
 
-function handleFile(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'txt') {
-        showError('仅支持 .txt 格式');
+输出格式为：
+
+原文：（原文段落）
+
+画面描述：（该原文的画面描述）`;
+
+processBtn.addEventListener('click', () => {
+    const content = inputText.value.trim();
+    if (!content) {
+        showError('请先粘贴故事文本');
         return;
     }
-    currentFile = file;
-    fileName.textContent = file.name;
-    fileSize.textContent = formatSize(file.size);
-    fileInfo.style.display = 'flex';
-    dropZone.style.display = 'none';
-    processBtn.disabled = false;
-    outputArea.style.display = 'none';
-    errorMsg.style.display = 'none';
-}
+    showError(null);
+    const style = styleInput.value.trim();
+    const prompt = style ? PROMPT_WITH_STYLE : PROMPT_NO_STYLE;
+    const styleLine = style ? `\n\n画图风格：${style}` : '';
+    const result = prompt + styleLine + '\n\n\n原文：\n' + content;
+    outputText.value = result;
+    outputArea.style.display = 'block';
+    copyBtn.textContent = '📋 复制内容';
+    copyBtn.className = 'copy-btn';
+});
+
+copyBtn.addEventListener('click', async () => {
+    try {
+        await navigator.clipboard.writeText(outputText.value);
+    } catch {
+        outputText.select();
+        document.execCommand('copy');
+    }
+    const tip = document.getElementById('copyTip');
+    tip.style.display = 'block';
+    setTimeout(() => { tip.style.display = 'none'; }, 1500);
+});
 
 function showError(msg) {
     errorMsg.textContent = msg;
     errorMsg.style.display = msg ? 'block' : 'none';
 }
-
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) handleFile(e.target.files[0]);
-});
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
-});
-
-removeFileBtn.addEventListener('click', () => {
-    currentFile = null;
-    fileInput.value = '';
-    fileInfo.style.display = 'none';
-    dropZone.style.display = 'block';
-    processBtn.disabled = true;
-    outputArea.style.display = 'none';
-    errorMsg.style.display = 'none';
-});
-
-processBtn.addEventListener('click', () => {
-    if (!currentFile) return;
-    showError(null);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const content = e.target.result;
-        const style = styleInput.value.trim();
-        const styleLine = style ? `\n\n画图风格：${style}` : '';
-        lastResult = PROMPT + styleLine + '\n\n\n原文：\n' + content;
-        outputText.value = lastResult;
-        outputArea.style.display = 'block';
-    };
-    reader.onerror = () => {
-        showError('文件读取失败');
-    };
-    reader.readAsText(currentFile, 'UTF-8');
-});
-
-downloadBtn.addEventListener('click', () => {
-    if (!lastResult) return;
-    const blob = new Blob([lastResult], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '分段_' + (currentFile ? currentFile.name : 'story.txt');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-});
 </script>
 </body>
 </html>
