@@ -389,7 +389,8 @@
             <div class="title">📖 这是做什么的？</div>
             <div class="step">
                 导入电子书 → 自动按章节拆分 → 每个章节文件自带 AI 处理指令。<br>
-                将导出的章节文件丢给 <em>DeepSeek</em>、<em>豆包</em>、<em>Kimi</em> 等 AI 工具，
+                将导出的章节文件丢给 <em>DeepSeek</em>、<em>豆包</em>、<em>Kimi</em> 等 AI 工具
+                （建议所有章节在<em>同一个聊天框</em>中依次发送，让 AI 记住上下文），
                 AI 会自动帮你提炼精华、重组逻辑，让你快速读懂一本书。
             </div>
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dde4ff;">
@@ -450,16 +451,7 @@
                 文件仅在本地浏览器处理，不会上传到任何服务器
             </div>
 
-            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #e5e7eb;">
-                <div style="font-size: 12px; color: #374151; margin-bottom: 8px; font-weight: 500;">📦 配套工具</div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <a href="故事排版.html" target="_blank" style="
-                        display: inline-flex; align-items: center; gap: 4px;
-                        padding: 6px 14px; background: #f0f3ff; border-radius: 8px;
-                        font-size: 12px; color: #4f6ef7; text-decoration: none;
-                    ">📝 故事排版（音频合成）</a>
-                </div>
-            </div>
+
         </div>
     </div>
 
@@ -498,7 +490,7 @@
 
         // ===== Prompt 模板 =====
         function getPrompt() {
-            return '【处理指令】\n以下是一本书的部分内容也可能是全部内容。\n用通俗易懂的语言简化书中内容，将用户代入到书中以一个连贯的故事的形式讲述书中内容(串不成故事的内容可以不写)。';
+            return '【处理指令】\n以下是一本书的部分内容也可能是全部内容。\n把书中内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
         }
 
         // ===== 文件选择 =====
