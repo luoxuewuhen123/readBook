@@ -275,9 +275,61 @@
             font-size: 11px;
         }
 
+        .tab-switch {
+            display: flex; gap: 0; margin-bottom: 20px;
+            background: #f3f4f6; border-radius: 10px; padding: 3px;
+        }
+        .tab-switch .tab {
+            flex: 1; text-align: center; padding: 10px;
+            font-size: 13px; font-weight: 500; cursor: pointer;
+            border-radius: 8px; color: #6b7280; transition: all 0.2s;
+            border: none; background: none;
+        }
+        .tab-switch .tab.active {
+            background: #fff; color: #4f6ef7; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .paste-area { display: none; }
+        .paste-area textarea {
+            width: 100%; height: 200px; padding: 14px;
+            border: 1px solid #e5e7eb; border-radius: 12px;
+            font-size: 13px; line-height: 1.8; resize: vertical;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #fafbfc; color: #374151;
+        }
+        .paste-area textarea:focus { outline: none; border-color: #4f6ef7; }
+
+        .convert-btn {
+            width: 100%; padding: 14px; margin-top: 16px;
+            background: #10b981; color: #fff; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+        }
+        .convert-btn:hover { background: #059669; }
+
+        .paste-output {
+            display: none; margin-top: 16px;
+        }
+        .paste-output textarea {
+            width: 100%; height: 200px; padding: 14px;
+            border: 1px solid #e5e7eb; border-radius: 12px;
+            font-size: 13px; line-height: 1.8; resize: vertical;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #fafbfc; color: #374151;
+        }
+        .paste-output .copy-btn {
+            width: 100%; margin-top: 8px; padding: 12px;
+            background: #10b981; color: #fff; border: none; border-radius: 10px;
+            font-size: 14px; font-weight: 500; cursor: pointer;
+        }
+        .paste-output .copy-btn:hover { background: #059669; }
+        .paste-output .copy-tip {
+            display: none; text-align: center; margin-top: 6px;
+            font-size: 13px; color: #10b981; font-weight: 500;
+        }
+
+        .drop-area { display: block; }
         .error-msg {
             display: none;
-            margin-top: 12px;
             padding: 10px 14px;
             background: #fef2f2;
             border-radius: 10px;
@@ -396,18 +448,35 @@
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dde4ff;">
                 <div class="step" style="font-weight: 500; color: #4f6ef7;">操作步骤</div>
                 <div class="step">
-                    ① 拖入电子书（支持 .epub .txt 文本型PDF）<br>
-                    ② 自动解析章节 → 点击导出<br>
-                    ③ 将文件拖入 AI 工具，AI 自动按指令处理
+                    ① 选择「导入电子书」或「粘贴文本」<br>
+                    ② 自动解析 → 点击导出/转化<br>
+                    ③ 将内容发给 AI 工具，AI 自动按指令处理
                 </div>
             </div>
         </div>
 
-        <div class="drop-zone" id="dropZone">
-            <span class="icon">📂</span>
-            <div class="text">拖入电子书文件，或点击选择</div>
-            <div class="hint">支持 .epub .txt .pdf 格式（仅限文本型PDF，扫描版请用在线AI工具）</div>
-            <input type="file" id="fileInput" accept=".epub,.txt,.pdf">
+        <div class="tab-switch">
+            <button class="tab active" id="tabFile">📂 导入电子书</button>
+            <button class="tab" id="tabPaste">✏️ 粘贴文本</button>
+        </div>
+
+        <div class="drop-area" id="dropArea">
+            <div class="drop-zone" id="dropZone">
+                <span class="icon">📂</span>
+                <div class="text">拖入电子书文件，或点击选择</div>
+                <div class="hint">支持 .epub .txt .pdf（仅限文本型PDF）</div>
+                <input type="file" id="fileInput" accept=".epub,.txt,.pdf">
+            </div>
+        </div>
+
+        <div class="paste-area" id="pasteArea">
+            <textarea id="pasteInput" placeholder="在此粘贴故事文本..."></textarea>
+            <button class="convert-btn" id="convertBtn">⚡ 转化为带指令文本</button>
+            <div class="paste-output" id="pasteOutput">
+                <textarea id="pasteOutputText" readonly></textarea>
+                <div class="copy-tip" id="pasteCopyTip" style="display:none; text-align:center; margin-top:6px; font-size:13px; color:#10b981; font-weight:500;">✅ 复制成功</div>
+                <button class="copy-btn" id="pasteCopyBtn">📋 复制内容</button>
+            </div>
         </div>
 
         <div class="file-info" id="fileInfo">
@@ -425,8 +494,6 @@
         </div>
 
         <button class="export-btn" id="exportBtn">⬇ 导出章节文件</button>
-
-        <button class="export-btn" id="clipBtn" style="display:none;">📋 逐章复制</button>
 
         <div class="progress" id="progress">
             <div class="bar-track">
@@ -466,6 +533,9 @@
         // ===== 设备判断 =====
         const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+        // ===== 按钮文字适配 =====
+        document.getElementById('exportBtn').textContent = isMobile ? '📋 复制章节文件' : '⬇ 导出章节文件';
+
         // ===== 状态 =====
         let currentFile = null;
         let chapters = [];
@@ -488,6 +558,67 @@
         const errorMsg = document.getElementById('errorMsg');
         const container = document.querySelector('.container');
 
+        // ===== 模式切换 =====
+        const tabFile = document.getElementById('tabFile');
+        const tabPaste = document.getElementById('tabPaste');
+        const dropArea = document.getElementById('dropArea');
+        const pasteArea = document.getElementById('pasteArea');
+        const pasteInput = document.getElementById('pasteInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const pasteOutput = document.getElementById('pasteOutput');
+        const pasteOutputText = document.getElementById('pasteOutputText');
+        const pasteCopyBtn = document.getElementById('pasteCopyBtn');
+        const pasteCopyTip = document.getElementById('pasteCopyTip');
+
+        function showFileMode() {
+            tabFile.classList.add('active');
+            tabPaste.classList.remove('active');
+            pasteArea.style.display = 'none';
+            pasteOutput.style.display = 'none';
+            dropArea.style.display = 'block';
+            // 如果有已解析的文件，恢复显示
+            if (currentFile) {
+                fileInfo.style.display = 'flex';
+                chaptersPreview.style.display = 'block';
+                exportBtn.style.display = 'block';
+            }
+        }
+        function showPasteMode() {
+            tabPaste.classList.add('active');
+            tabFile.classList.remove('active');
+            dropArea.style.display = 'none';
+            fileInfo.style.display = 'none';
+            chaptersPreview.style.display = 'none';
+            exportBtn.style.display = 'none';
+            progress.style.display = 'none';
+            result.style.display = 'none';
+            pasteArea.style.display = 'block';
+            // 如果有已转化的内容，恢复显示
+            if (pasteOutputText.value.trim()) {
+                pasteOutput.style.display = 'block';
+            }
+        }
+
+        tabFile.addEventListener('click', showFileMode);
+        tabPaste.addEventListener('click', showPasteMode);
+
+        convertBtn.addEventListener('click', () => {
+            const text = pasteInput.value.trim();
+            if (!text) { showError('请先粘贴文本'); return; }
+            showError(null);
+            const prompt = '【处理指令】\n把以下内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
+            pasteOutputText.value = prompt + '\n\n' + text;
+            pasteOutput.style.display = 'block';
+            pasteCopyTip.style.display = 'none';
+        });
+
+        pasteCopyBtn.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(pasteOutputText.value); }
+            catch { pasteOutputText.select(); document.execCommand('copy'); }
+            pasteCopyTip.style.display = 'block';
+            setTimeout(() => { pasteCopyTip.style.display = 'none'; }, 1500);
+        });
+
         // ===== Prompt 模板 =====
         function getPrompt() {
             return '【处理指令】\n以下是一本书的部分内容也可能是全部内容。\n把书中内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
@@ -507,7 +638,6 @@
             dropZone.style.display = 'none';
             chaptersPreview.style.display = 'none';
             exportBtn.style.display = 'none';
-            clipBtn.style.display = 'none';
             result.style.display = 'none';
             errorMsg.style.display = 'none';
             chapters = [];
@@ -544,7 +674,6 @@
             dropZone.style.display = 'block';
             chaptersPreview.style.display = 'none';
             exportBtn.style.display = 'none';
-            clipBtn.style.display = 'none';
             progress.style.display = 'none';
             result.style.display = 'none';
             errorMsg.style.display = 'none';
@@ -570,8 +699,7 @@
                 }
                 renderChapters();
                 chaptersPreview.style.display = 'block';
-                if (isMobile) clipBtn.style.display = 'block';
-                else exportBtn.style.display = 'block';
+                exportBtn.style.display = 'block';
                 container.style.minHeight = '';
             } catch (err) {
                 showError('解析失败：' + err.message);
@@ -898,7 +1026,6 @@
         }
 
         // ===== 导出格式选择 =====
-        const clipBtn = document.getElementById('clipBtn');
         const exportFormat = isMobile ? 'clip' : 'txt';
 
         // ===== 导出 =====
@@ -909,7 +1036,6 @@
             showError(null);
             result.style.display = 'none';
             exportBtn.style.display = 'none';
-            clipBtn.style.display = 'none';
             progress.style.display = 'block';
             progressBar.style.width = '0%';
 
@@ -923,7 +1049,6 @@
                 });
                 if (selectedChapters.length === 0) {
                     showError('请选择一个章节');
-                    clipBtn.style.display = 'block';
                     progress.style.display = 'none';
                     return;
                 }
@@ -954,7 +1079,6 @@
                         progress.style.display = 'none';
                         result.style.display = 'block';
                         resultDesc.innerHTML = `✅ 已复制到剪贴板！<br><br>📱 直接打开 DeepSeek / 豆包 / Kimi，粘贴即可开始分析。`;
-                        clipBtn.style.display = 'block';
                     } catch (clipErr) {
                         // 剪贴板 API 失败（如 HTTPS 限制），用下载 txt 文件替代
                         const blob = new Blob([clipText], { type: 'text/plain;charset=utf-8' });
@@ -962,8 +1086,8 @@
                         progress.style.display = 'none';
                         result.style.display = 'block';
                         resultDesc.innerHTML = `已生成全本文本文件，请下载后打开复制。`;
-                        clipBtn.style.display = 'block';
                     }
+                    exportBtn.style.display = 'block';
                 } else {
                     // ===== 导出为 TXT =====
                     const zip = new JSZip();
@@ -988,21 +1112,18 @@
                     progress.style.display = 'none';
                     result.style.display = 'block';
                     resultDesc.textContent = `共导出 ${total} 个章节文件，打包为 ${bookName}_章节分解.zip`;
-                    if (isMobile) clipBtn.style.display = 'block';
-                    else exportBtn.style.display = 'block';
+                    exportBtn.style.display = 'block';
                     container.style.minHeight = '';
                 }
             } catch (err) {
                 progress.style.display = 'none';
                 showError('导出失败：' + err.message);
-                if (isMobile) clipBtn.style.display = 'block';
-                else exportBtn.style.display = 'block';
+                exportBtn.style.display = 'block';
                 container.style.minHeight = '';
             }
         }
 
         exportBtn.addEventListener('click', doExport);
-        clipBtn.addEventListener('click', doExport);
 
         function buildChapterContent(chapter, bookName) {
             const prompt = getPrompt();
