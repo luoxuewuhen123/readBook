@@ -606,8 +606,8 @@
             const text = pasteInput.value.trim();
             if (!text) { showError('请先粘贴文本'); return; }
             showError(null);
-            const prompt = '\n\n【处理指令】\n把内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
-            pasteOutputText.value = text + prompt;
+            const prompt = '【处理指令】\n把以下内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
+            pasteOutputText.value = prompt + '\n\n' + text;
             pasteOutput.style.display = 'block';
             pasteCopyTip.style.display = 'none';
         });
@@ -621,7 +621,7 @@
 
         // ===== Prompt 模板 =====
         function getPrompt() {
-            return '以下是一本书的部分内容也可能是全部内容。';
+            return '【处理指令】\n以下是一本书的部分内容也可能是全部内容。\n把书中内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
         }
 
         // ===== 文件选择 =====
@@ -1127,8 +1127,7 @@
 
         function buildChapterContent(chapter, bookName) {
             const prompt = getPrompt();
-            const instruction = '\n\n【处理指令】\n把书中内容改成一个流畅深入浅出的代入式短故事，别丢掉它原本的核心思想。去掉标题和括号英文。';
-            return prompt + '\n\n\n【正文】\n' + chapter.text + instruction;
+            return prompt + '\n\n【正文】\n' + chapter.text;
         }
 
         // ===== 工具函数 =====
